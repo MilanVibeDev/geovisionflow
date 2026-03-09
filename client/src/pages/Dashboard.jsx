@@ -146,7 +146,7 @@ const Dashboard = () => {
 
         const fetchData = async () => {
             try {
-                const response = await axios.post('https://geovisionflow.com/api/analyze', {
+                const response = await axios.post('https://geovisionflow-api.onrender.com/api/analyze', {
                     url: location.state.url,
                     keyword: location.state?.keyword || 'general',
                     country: location.state?.country || 'global'
