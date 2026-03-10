@@ -6,7 +6,8 @@ const scrapeWebsite = async (url) => {
         const response = await axios.get(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-            }
+            },
+            timeout: 15000 // 15s timeout
         });
         const html = response.data;
         const $ = cheerio.load(html);

@@ -4,6 +4,5 @@ server/node_modules/
 .env
 client/.env
 server/.env
-client/dist/
 .DS_Store
 Thumbs.db

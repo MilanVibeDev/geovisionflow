@@ -145,8 +145,9 @@ const Dashboard = () => {
         }
 
         const fetchData = async () => {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             try {
-                const response = await axios.post('https://geovisionflow-api.onrender.com/api/analyze', {
+                const response = await axios.post(`${apiUrl}/api/analyze`, {
                     url: location.state.url,
                     keyword: location.state?.keyword || 'general',
                     country: location.state?.country || 'global'

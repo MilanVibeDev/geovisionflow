@@ -148,17 +148,24 @@ const analyzeWebsite = async (req, res) => {
         }
 
         // 1. Scrape Website
+        console.log('Step 1: Scraping website...');
         const seoData = await scrapeWebsite(url);
+        console.log('Step 1: Scraping successful');
 
         // 2. Performance (PageSpeed)
+        console.log('Step 2: Getting PageSpeed data...');
         const perfData = await getPageSpeed(url);
+        console.log('Step 2: PageSpeed successful');
 
         // 3. Calculate Technical Score — formula-based, honest
+        console.log('Step 3: Calculating technical score...');
         const { score: techScore, deductions: techDeductions } = calcTechScore(seoData, perfData.score);
 
         // 4. AI Analysis via OpenRouter
+        console.log('Step 4: Starting AI analysis...');
         const aiCountry = targetCountry === 'global' ? seoData.detectedGeo : targetCountry;
         const aiAudit = await getAIAudit(seoData, targetKeyword, aiCountry);
+        console.log('Step 4: AI analysis completed');
 
         const result = {
             url,

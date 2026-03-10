@@ -6,7 +6,7 @@ const getPageSpeed = async (url) => {
         if (process.env.PAGESPEED_API_KEY) {
             apiUrl += `&key=${process.env.PAGESPEED_API_KEY}`;
         }
-        const response = await axios.get(apiUrl);
+        const response = await axios.get(apiUrl, { timeout: 20000 });
         const data = response.data;
 
         const lighthouse = data.lighthouseResult;
