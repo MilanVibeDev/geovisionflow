@@ -135,3 +135,16 @@
 .faq-letter {
     display: inline-block;
 }
+
+@media (max-width: 768px) {
+    .faq-accordion-trigger {
+        padding: 1rem !important;
+        font-size: 1.1rem;
+    }
+    .faq-accordion-content {
+        padding: 0 1rem 1.5rem 1rem !important;
+    }
+    .faq-section {
+        padding: 4rem 1rem;
+    }
+}

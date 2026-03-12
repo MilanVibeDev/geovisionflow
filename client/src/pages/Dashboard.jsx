@@ -7,6 +7,7 @@ import {
     Zap, TrendingUp, Shield, Search, Star, MessageSquare, Info,
     Bot, BrainCircuit, BarChart3, AlertCircle
 } from 'lucide-react';
+import UniqueLoading from '../components/ui/morph-loading';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const scoreColor = (s) => {
@@ -166,12 +167,7 @@ const Dashboard = () => {
     if (loading) return (
         <div className="dashboard">
             <div className="dashboard-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                >
-                    <Cpu size={50} color="var(--primary)" />
-                </motion.div>
+                <UniqueLoading variant="morph" size="lg" />
                 <h2 style={{ marginTop: '2rem' }}>AI Analyzing {location.state?.url}...</h2>
                 <p className="hero-subtitle">Checking Technical SEO, AIO, GEO & AEO Readiness</p>
             </div>
@@ -385,7 +381,7 @@ const Dashboard = () => {
                 {/* ══ SEO AUDIT TAB ══════════════════════════════════════════════════════ */}
                 {activeTab === 'seo-audit' && (
                     <div className="seo-audit-section">
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem', background: 'white', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
+                        <div className="responsive-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem', background: 'white', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
                             <div style={{
                                 width: '90px', height: '90px', borderRadius: '50%', flexShrink: 0,
                                 background: conicGradient(scores.technical, scoreColor(scores.technical)),
@@ -544,7 +540,7 @@ const Dashboard = () => {
                 {activeTab === 'geo-insights' && (
                     <div className="geo-insights-section">
                         {/* Score Header */}
-                        <div style={{ display: 'flex', alignItems: 'center', background: 'white', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-light)', gap: '1.25rem', marginBottom: '2rem' }}>
+                        <div className="responsive-header" style={{ display: 'flex', alignItems: 'center', background: 'white', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-light)', gap: '1.25rem', marginBottom: '2rem' }}>
                             <div style={{
                                 width: '80px', height: '80px', borderRadius: '50%', flexShrink: 0,
                                 background: conicGradient(scores.geo, scoreColor(scores.geo)),
@@ -650,7 +646,7 @@ const Dashboard = () => {
                 {/* ══ AIO TAB ════════════════════════════════════════════════════════════ */}
                 {activeTab === 'ai-visibility' && (
                     <div className="ai-visibility-section">
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2.5rem', background: 'white', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
+                        <div className="responsive-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '2.5rem', background: 'white', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
                             <div style={{
                                 width: '100px', height: '100px', borderRadius: '50%', flexShrink: 0,
                                 background: conicGradient(scores.aio, scoreColor(scores.aio)),
@@ -669,7 +665,7 @@ const Dashboard = () => {
                                         </p>
                                     </div>
                                     {aiAudit?.aiVisibilityDetails?.discoveryEase && aiAudit.aiVisibilityDetails.discoveryEase !== 'Unknown' && (
-                                        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '1rem' }}>
+                                        <div className="ai-discovery-container" style={{ textAlign: 'right', flexShrink: 0, marginLeft: '1rem' }}>
                                             <p style={{ fontSize: '0.85rem', color: 'var(--text-light)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '1px' }}>Discovery Rating</p>
                                             <p style={{ fontSize: '1.5rem', fontWeight: 700, color: aiAudit.aiVisibilityDetails.discoveryEase === 'Easy' ? 'var(--accent-mint)' : aiAudit.aiVisibilityDetails.discoveryEase === 'Hard' ? 'var(--accent-coral)' : 'var(--accent-warning)' }}>
                                                 {aiAudit.aiVisibilityDetails.discoveryEase}
@@ -685,7 +681,7 @@ const Dashboard = () => {
                         <div className="details-grid">
                             <div className="info-panel">
                                 <h3 className="panel-header">AIO Signal Breakdown</h3>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+                                <div className="ai-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
                                     {[
                                         { label: 'SEO Optimisation', key: 'seoOptimization', icon: Search, color: 'var(--primary)', tip: 'Google ranking signals that directly feed AI crawlability' },
                                         { label: 'Brand Mentions', key: 'brandMentions', icon: MessageSquare, color: 'var(--accent-mint)', tip: 'Frequency and clarity of brand references on the page' },

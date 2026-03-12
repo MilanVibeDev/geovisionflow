@@ -137,7 +137,7 @@ const Home = () => {
                 </div>
             </section>
 
-            <div className="w-full flex justify-center py-20">
+            <div className="w-full flex justify-center py-10 md:py-20 px-4">
                 <FAQs />
             </div>
 

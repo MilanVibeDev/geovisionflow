@@ -115,57 +115,38 @@ Return ONLY valid JSON, no explanation text outside the JSON:
 }
         `;
 
-        const primaryModel = process.env.AI_MODEL || 'google/gemini-2.0-flash-exp:free';
-        const candidateModels = [
-            primaryModel,
-            'google/gemini-2.0-flash-lite-preview-02-05:free',
-            'meta-llama/llama-3.3-70b-instruct:free',
-            'mistralai/mistral-7b-instruct:free',
-            'google/gemini-flash-1.5-exp:free',
-            'openrouter/auto'
-        ];
+        const model = process.env.AI_MODEL || 'gemini-2.5-flash';
 
         let response;
-        let lastError;
-        let successfulModel;
-
-        for (const model of candidateModels) {
-            try {
-                console.log(`Attempting AI analysis with model: ${model}`);
-                response = await axios.post(
-                    'https://openrouter.ai/api/v1/chat/completions',
-                    {
-                        model: model,
-                        messages: [{ role: 'user', content: prompt }]
-                    },
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                            'HTTP-Referer': 'https://geovisionflow.com',
-                            'X-Title': 'SEO Calc'
-                        },
-                        timeout: 30000 // 30s timeout per attempt
+        try {
+            console.log(`Attempting AI analysis with Gemini model: ${model}`);
+            response = await axios.post(
+                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+                {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        responseMimeType: "application/json"
                     }
-                );
-                successfulModel = model;
-                break; // Success!
-            } catch (err) {
-                lastError = err;
-                console.error(`Model ${model} failed:`, err.response?.data?.error?.message || err.message);
-                // Continue to next model
-            }
+                },
+                {
+                    timeout: 30000 // 30s timeout
+                }
+            );
+        } catch (err) {
+            console.error(`Gemini Model ${model} failed:`, err.response?.data?.error?.message || err.message);
+            throw err;
         }
 
         if (!response) {
-            throw lastError || new Error('All candidate models failed');
+            throw new Error('Gemini analysis failed');
         }
 
-        if (response.data.usage) {
-            const { total_tokens, prompt_tokens, completion_tokens } = response.data.usage;
-            console.log(`OpenRouter Usage - Model: ${successfulModel}, Total Tokens: ${total_tokens} (P: ${prompt_tokens}, C: ${completion_tokens})`);
+        if (response.data.usageMetadata) {
+            const { totalTokenCount, promptTokenCount, candidatesTokenCount } = response.data.usageMetadata;
+            console.log(`Gemini Usage - Model: ${model}, Total Tokens: ${totalTokenCount} (P: ${promptTokenCount}, C: ${candidatesTokenCount})`);
         }
 
-        let resultText = response.data.choices[0].message.content;
+        let resultText = response.data.candidates[0].content.parts[0].text;
 
         // Remove markdown formatting if present
         resultText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -185,7 +166,7 @@ Return ONLY valid JSON, no explanation text outside the JSON:
         return parsed;
 
     } catch (error) {
-        console.error('OpenRouter AI Analysis Error:', error.response?.data || error.message);
+        console.error('Gemini AI Analysis Error:', error.response?.data || error.message);
         return {
             aioScore: null,
             geoScore: null,
