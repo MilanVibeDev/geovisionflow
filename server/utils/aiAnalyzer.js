@@ -1,5 +1,57 @@
 const axios = require('axios');
 
+// ── Error type classifier ──────────────────────────────────────────────────────
+/**
+ * Classifies an axios/network error into one of three categories:
+ *   API_ERROR     – Gemini returned an HTTP error (4xx/5xx from Google's API)
+ *   NETWORK_ERROR – No response received (DNS failure, timeout, no internet)
+ *   SERVER_ERROR  – Unexpected internal error (parse failure, bad config, etc.)
+ */
+const classifyError = (err) => {
+    if (err.response) {
+        // The request reached Google's servers and they returned an error status
+        const status = err.response.status;
+        const apiMsg = err.response?.data?.error?.message || err.response?.data?.error || err.message;
+        return {
+            type: 'API_ERROR',
+            status,
+            message: apiMsg,
+            detail: err.response?.data
+        };
+    } else if (err.request) {
+        // The request was made but no response was received
+        const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+        return {
+            type: 'NETWORK_ERROR',
+            status: null,
+            message: isTimeout
+                ? `Request timed out after ${err.config?.timeout || '?'}ms — Gemini API unreachable`
+                : `No response from Gemini API — possible DNS failure or no internet connection (${err.code || err.message})`,
+            detail: null
+        };
+    } else {
+        // Something happened in setting up the request or in our parsing code
+        return {
+            type: 'SERVER_ERROR',
+            status: null,
+            message: err.message,
+            detail: null
+        };
+    }
+};
+
+// ── Console logger for classified errors ──────────────────────────────────────
+const logClassifiedError = (context, errInfo) => {
+    const icons = { API_ERROR: '🔴 [API ERROR]', NETWORK_ERROR: '🟠 [NETWORK ERROR]', SERVER_ERROR: '🟡 [SERVER ERROR]' };
+    const icon = icons[errInfo.type] || '❌ [ERROR]';
+    console.error(`\n${icon} ${context}`);
+    console.error(`  ↳ Type    : ${errInfo.type}`);
+    if (errInfo.status) console.error(`  ↳ Status  : HTTP ${errInfo.status}`);
+    console.error(`  ↳ Message : ${errInfo.message}`);
+    if (errInfo.detail) console.error(`  ↳ Detail  :`, JSON.stringify(errInfo.detail, null, 2));
+    console.error('');
+};
+
 /**
  * Sends scraped website data to the AI for honest, criteria-based analysis.
  *
@@ -115,38 +167,76 @@ Return ONLY valid JSON, no explanation text outside the JSON:
 }
         `;
 
-        const model = process.env.AI_MODEL || 'gemini-2.5-flash';
+        const model = process.env.AI_MODEL || 'gemini-1.5-flash';
 
         let response;
-        try {
-            console.log(`Attempting AI analysis with Gemini model: ${model}`);
-            response = await axios.post(
-                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
-                {
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        responseMimeType: "application/json"
+        let attempts = 0;
+        const maxAttempts = 3;
+        
+        while (attempts < maxAttempts) {
+            try {
+                console.log(`\n🤖 Attempt ${attempts + 1}/${maxAttempts}: AI analysis with model: ${model}`);
+                response = await axios.post(
+                    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+                    {
+                        contents: [{ parts: [{ text: prompt }] }],
+                        // NOTE: responseMimeType "application/json" is intentionally omitted.
+                        // It causes HTTP 400 errors with gemini-2.0-flash. We parse JSON manually below.
+                        generationConfig: {
+                            temperature: 0.2,
+                            topP: 0.8,
+                            maxOutputTokens: 4096
+                        }
+                    },
+                    {
+                        timeout: 35000 // 35s timeout
                     }
-                },
-                {
-                    timeout: 30000 // 30s timeout
+                );
+                console.log(`✅ Gemini responded successfully on attempt ${attempts + 1}`);
+                break; // Success!
+            } catch (err) {
+                attempts++;
+                const errInfo = classifyError(err);
+                logClassifiedError(`Gemini attempt ${attempts}/${maxAttempts} failed`, errInfo);
+
+                const isRateLimit = err.response?.status === 429;
+                
+                if (isRateLimit && attempts < maxAttempts) {
+                    const waitTime = attempts * 5000; // 5s, 10s...
+                    console.warn(`⏳ Rate limited (429). Retrying in ${waitTime / 1000}s...`);
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                    continue;
                 }
-            );
-        } catch (err) {
-            console.error(`Gemini Model ${model} failed:`, err.response?.data?.error?.message || err.message);
-            throw err;
+                
+                if (attempts === maxAttempts) throw err;
+            }
         }
 
         if (!response) {
-            throw new Error('Gemini analysis failed');
+            throw new Error('Gemini analysis failed — no response after all retries');
         }
 
-        if (response.data.usageMetadata) {
-            const { totalTokenCount, promptTokenCount, candidatesTokenCount } = response.data.usageMetadata;
-            console.log(`Gemini Usage - Model: ${model}, Total Tokens: ${totalTokenCount} (P: ${promptTokenCount}, C: ${candidatesTokenCount})`);
+        if (!response.data || !response.data.candidates || response.data.candidates.length === 0) {
+            const errInfo = { type: 'API_ERROR', status: 200, message: 'No candidates in Gemini response — likely safety filter triggered', detail: response.data };
+            logClassifiedError('Gemini returned empty candidates', errInfo);
+            throw new Error('AI Analysis failed - No response from model.');
         }
 
-        let resultText = response.data.candidates[0].content.parts[0].text;
+        const candidate = response.data.candidates[0];
+        if (candidate.finishReason === 'SAFETY' || candidate.finishReason === 'OTHER') {
+            const errInfo = { type: 'API_ERROR', status: 200, message: `Gemini blocked response. finishReason: ${candidate.finishReason}`, detail: candidate };
+            logClassifiedError('Gemini blocked response', errInfo);
+            throw new Error(`AI Analysis blocked by safety filters (${candidate.finishReason}).`);
+        }
+
+        let resultText = candidate.content.parts[0].text;
+        
+        // Ensure resultText is not empty
+        if (!resultText) {
+            const errInfo = { type: 'API_ERROR', status: 200, message: 'Gemini returned a candidate with empty text content', detail: candidate };
+            logClassifiedError('Empty text in Gemini candidate', errInfo);
+            throw new Error('Gemini returned an empty response.');
+        }
 
         // Remove markdown formatting if present
         resultText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -158,26 +248,35 @@ Return ONLY valid JSON, no explanation text outside the JSON:
             resultText = resultText.substring(jsonStart, jsonEnd + 1);
         }
 
-        const parsed = JSON.parse(resultText);
-
-        // Backwards-compat: map aioScore -> aiVisibilityScore for any code that still reads it
-        parsed.aiVisibilityScore = parsed.aioScore;
-
-        return parsed;
+        try {
+            const parsed = JSON.parse(resultText);
+            // Backwards-compat: map aioScore -> aiVisibilityScore for any code that still reads it
+            parsed.aiVisibilityScore = parsed.aioScore;
+            console.log(`\n✅ AI Analysis complete — AIO: ${parsed.aioScore}, GEO: ${parsed.geoScore}\n`);
+            return parsed;
+        } catch (parseErr) {
+            const errInfo = { type: 'SERVER_ERROR', status: null, message: `JSON parse failed: ${parseErr.message}`, detail: resultText.substring(0, 300) };
+            logClassifiedError('Failed to parse Gemini JSON output', errInfo);
+            throw new Error('Failed to parse AI response. Model output was not valid JSON.');
+        }
 
     } catch (error) {
-        console.error('Gemini AI Analysis Error:', error.response?.data || error.message);
+        const errInfo = classifyError(error);
+        logClassifiedError('getAIAudit — fatal error, returning fallback result', errInfo);
+
         return {
             aioScore: null,
             geoScore: null,
             aiVisibilityScore: null,
             aiSnippetProbability: 'Unknown',
             llmReadability: 'Unknown',
-            contentGaps: ['AI analysis could not be completed — API error or rate limit. Scores are unavailable.'],
+            errorType: errInfo.type,
+            errorMessage: errInfo.message,
+            contentGaps: [`AI analysis could not be completed — ${errInfo.type}: ${errInfo.message}`],
             suggestedH1: seoData.h1Tags[0] || 'N/A',
             suggestedMetaTitle: seoData.title || 'N/A',
             suggestedMetaDescription: seoData.description || 'N/A',
-            actionPlan: [{ priority: 'High', task: 'Retry the analysis — AI API returned an error.', impact: 'AIO' }],
+            actionPlan: [{ priority: 'High', task: `Retry the analysis — ${errInfo.type.replace('_', ' ')}: ${errInfo.message}`, impact: 'AIO' }],
             aiVisibilityDetails: {
                 seoOptimization: null,
                 brandMentions: null,

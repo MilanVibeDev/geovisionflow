@@ -5,9 +5,58 @@ import { motion } from 'framer-motion';
 import {
     Activity, Globe, Cpu, CheckCircle, AlertTriangle, ArrowLeft,
     Zap, TrendingUp, Shield, Search, Star, MessageSquare, Info,
-    Bot, BrainCircuit, BarChart3, AlertCircle
+    Bot, BrainCircuit, BarChart3, AlertCircle, Wifi, WifiOff, ServerCrash
 } from 'lucide-react';
 import UniqueLoading from '../components/ui/morph-loading';
+
+// ── Client-side error classifier ─────────────────────────────────────────────
+/**
+ * Detects whether a fetch failure is an API error, server error, or network issue.
+ * Returns: { type, label, message, color, icon }
+ */
+const classifyClientError = (err) => {
+    if (!err.response && !err.request) {
+        // Axios setup error or our own code threw
+        return {
+            type: 'SERVER_ERROR',
+            label: 'Server Error',
+            message: err.message || 'An unexpected internal error occurred.',
+            color: '#f59e0b',
+            icon: ServerCrash
+        };
+    }
+    if (!err.response) {
+        // Request was made but no response — network issue
+        const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+        return {
+            type: 'NETWORK_ERROR',
+            label: 'Network Connection Error',
+            message: isTimeout
+                ? 'The request timed out. Check your internet connection or try again later.'
+                : 'Could not reach the server. Check your internet connection.',
+            color: '#f97316',
+            icon: WifiOff
+        };
+    }
+    const status = err.response.status;
+    if (status >= 500) {
+        return {
+            type: 'SERVER_ERROR',
+            label: `Server Error (HTTP ${status})`,
+            message: err.response?.data?.error || err.message || 'The server encountered an internal error.',
+            color: '#f59e0b',
+            icon: ServerCrash
+        };
+    }
+    // 4xx — typically an API/configuration error
+    return {
+        type: 'API_ERROR',
+        label: `API Error (HTTP ${status})`,
+        message: err.response?.data?.error || err.message || 'The API returned an error response.',
+        color: '#ef4444',
+        icon: AlertTriangle
+    };
+};
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const scoreColor = (s) => {
@@ -137,6 +186,7 @@ const Dashboard = () => {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState(null);
     const [error, setError] = useState('');
+    const [errorInfo, setErrorInfo] = useState(null); // { type, label, message, color, icon }
     const [activeTab, setActiveTab] = useState('overview');
 
     useEffect(() => {
@@ -156,7 +206,15 @@ const Dashboard = () => {
                 setData(response.data);
                 setLoading(false);
             } catch (err) {
-                setError(err.response?.data?.error || err.message);
+                const classified = classifyClientError(err);
+                // Log classified error to the browser console
+                const icons = { API_ERROR: '🔴 [API ERROR]', NETWORK_ERROR: '🟠 [NETWORK ERROR]', SERVER_ERROR: '🟡 [SERVER ERROR]' };
+                console.error(`\n${icons[classified.type] || '❌ [ERROR]'} ${classified.label}`);
+                console.error('  ↳ Type    :', classified.type);
+                console.error('  ↳ Message :', classified.message);
+                console.error('  ↳ Raw err :', err);
+                setError(classified.message);
+                setErrorInfo(classified);
                 setLoading(false);
             }
         };
@@ -174,16 +232,52 @@ const Dashboard = () => {
         </div>
     );
 
-    if (error) return (
-        <div className="dashboard">
-            <div className="dashboard-main" style={{ textAlign: 'center', marginTop: '10%' }}>
-                <AlertTriangle size={50} color="var(--accent-coral)" />
-                <h2 style={{ marginTop: '1rem' }}>Failed to analyze</h2>
-                <p className="hero-subtitle">{error}</p>
-                <button className="btn btn-outline" onClick={() => navigate('/')}>Go Back</button>
+    if (error) {
+        const ErrIcon = errorInfo?.icon || AlertTriangle;
+        const errColor = errorInfo?.color || 'var(--accent-coral)';
+        const errLabel = errorInfo?.label || 'Analysis Failed';
+        return (
+            <div className="dashboard">
+                <div className="dashboard-main" style={{ textAlign: 'center', marginTop: '8%', maxWidth: '560px', margin: '8% auto 0' }}>
+                    <div style={{
+                        width: '80px', height: '80px', borderRadius: '50%',
+                        background: `${errColor}18`, display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem'
+                    }}>
+                        <ErrIcon size={38} color={errColor} />
+                    </div>
+                    <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                        padding: '0.3rem 0.85rem', borderRadius: '20px',
+                        background: `${errColor}18`, border: `1px solid ${errColor}55`,
+                        fontSize: '0.8rem', fontWeight: 700, color: errColor,
+                        textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem'
+                    }}>
+                        <ErrIcon size={13} />
+                        {errLabel}
+                    </div>
+                    <h2 style={{ marginTop: '0.5rem', fontSize: '1.5rem' }}>Failed to Analyze</h2>
+                    <p className="hero-subtitle" style={{ margin: '0.75rem 0 1.5rem', fontSize: '0.92rem', lineHeight: 1.6 }}>{error}</p>
+                    {errorInfo?.type === 'API_ERROR' && (
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginBottom: '1.25rem' }}>
+                            💡 This is an API-level error from the server. Check your Gemini API key and quota.
+                        </p>
+                    )}
+                    {errorInfo?.type === 'NETWORK_ERROR' && (
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginBottom: '1.25rem' }}>
+                            💡 Check your internet connection and make sure the server is running.
+                        </p>
+                    )}
+                    {errorInfo?.type === 'SERVER_ERROR' && (
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginBottom: '1.25rem' }}>
+                            💡 An internal server error occurred. Try again or check the server console for details.
+                        </p>
+                    )}
+                    <button className="btn btn-outline" onClick={() => navigate('/')}>Go Back</button>
+                </div>
             </div>
-        </div>
-    );
+        );
+    }
 
     const { scores, seoData, aiAudit, techDeductions = [] } = data;
 

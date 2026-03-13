@@ -506,3 +506,173 @@
     flex-direction: column;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DASHBOARD ENTRANCE ANIMATIONS
+   All elements animate in when the dashboard page first renders.
+   Uses pure CSS keyframes + staggered animation-delay — no JS required.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Keyframes ─────────────────────────────────────────────────────────── */
+
+@keyframes dash-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dash-fade-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dash-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes dash-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes dash-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  70% {
+    transform: scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes dash-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────────────── */
+
+.sidebar {
+  animation: dash-slide-left 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sidebar .logo {
+  animation: dash-fade-down 0.4s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sidebar .btn {
+  animation: dash-fade-up 0.4s 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sidebar-link:nth-child(1) { animation: dash-fade-up 0.4s 0.25s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.sidebar-link:nth-child(2) { animation: dash-fade-up 0.4s 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.sidebar-link:nth-child(3) { animation: dash-fade-up 0.4s 0.39s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.sidebar-link:nth-child(4) { animation: dash-fade-up 0.4s 0.46s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ── Dashboard header ────────────────────────────────────────────────────── */
+
+.dashboard-main > header {
+  animation: dash-fade-down 0.5s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Score cards — cascade up with spring ───────────────────────────────── */
+
+.score-grid {
+  animation: dash-fade-up 0.5s 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.score-card:nth-child(1) { animation: dash-scale-in 0.5s 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.score-card:nth-child(2) { animation: dash-scale-in 0.5s 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.score-card:nth-child(3) { animation: dash-scale-in 0.5s 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.score-card:nth-child(4) { animation: dash-scale-in 0.5s 0.52s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ── Info panels ─────────────────────────────────────────────────────────── */
+
+.info-panel {
+  animation: dash-fade-up 0.55s 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.details-grid > .info-panel:nth-child(1) {
+  animation: dash-fade-up 0.55s 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.details-grid > .info-panel:nth-child(2) {
+  animation: dash-fade-up 0.55s 0.52s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Task items — stagger in one by one ─────────────────────────────────── */
+
+.task-item:nth-child(1)  { animation: dash-fade-up 0.4s 0.5s  cubic-bezier(0.22, 1, 0.36, 1) both; }
+.task-item:nth-child(2)  { animation: dash-fade-up 0.4s 0.57s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.task-item:nth-child(3)  { animation: dash-fade-up 0.4s 0.64s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.task-item:nth-child(4)  { animation: dash-fade-up 0.4s 0.71s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.task-item:nth-child(5)  { animation: dash-fade-up 0.4s 0.78s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.task-item:nth-child(6)  { animation: dash-fade-up 0.4s 0.85s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.task-item:nth-child(7)  { animation: dash-fade-up 0.4s 0.92s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.task-item:nth-child(8)  { animation: dash-fade-up 0.4s 0.99s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ── Responsive-header sections (SEO/GEO/AIO tab headers) ───────────────── */
+
+.responsive-header {
+  animation: dash-fade-up 0.5s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Panel headers (section titles inside cards) ─────────────────────────── */
+
+.panel-header {
+  animation: dash-fade-down 0.4s 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── AIO signal grid cells ───────────────────────────────────────────────── */
+
+.ai-stats-grid > div:nth-child(1) { animation: dash-pop-in 0.45s 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ai-stats-grid > div:nth-child(2) { animation: dash-pop-in 0.45s 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ai-stats-grid > div:nth-child(3) { animation: dash-pop-in 0.45s 0.75s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ai-stats-grid > div:nth-child(4) { animation: dash-pop-in 0.45s 0.85s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ── Respect reduced-motion preference ──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar .logo,
+  .sidebar .btn,
+  .sidebar-link,
+  .dashboard-main > header,
+  .score-grid,
+  .score-card,
+  .info-panel,
+  .details-grid > .info-panel,
+  .task-item,
+  .responsive-header,
+  .panel-header,
+  .ai-stats-grid > div {
+    animation: none !important;
+  }
+}
