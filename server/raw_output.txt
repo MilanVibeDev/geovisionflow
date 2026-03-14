@@ -1,0 +1,69 @@
+﻿Testing model: google/gemini-2.0-flash-exp:free
+{
+  error: {
+    message: 'No endpoints found for google/gemini-2.0-flash-exp:free.',
+    code: 404
+  },
+  user_id: 'user_2vlYaXye1MGTyKlX0qfLZMJqEDp'
+}
+Testing model: google/gemini-2.0-flash-lite-preview-02-05:free
+{
+  error: {
+    message: 'google/gemini-2.0-flash-lite-preview-02-05:free is not a valid model ID',
+    code: 400
+  },
+  user_id: 'user_2vlYaXye1MGTyKlX0qfLZMJqEDp'
+}
+Testing model: meta-llama/llama-3.3-70b-instruct:free
+{
+  error: {
+    message: 'Provider returned error',
+    code: 429,
+    metadata: {
+      raw: 'meta-llama/llama-3.3-70b-instruct:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate your rate limits: https://openrouter.ai/settings/integrations',
+      provider_name: 'Venice',
+      is_byok: false
+    }
+  },
+  user_id: 'user_2vlYaXye1MGTyKlX0qfLZMJqEDp'
+}
+Testing model: mistralai/mistral-7b-instruct:free
+{
+  error: {
+    message: 'No endpoints found for mistralai/mistral-7b-instruct:free.',
+    code: 404
+  },
+  user_id: 'user_2vlYaXye1MGTyKlX0qfLZMJqEDp'
+}
+Testing model: google/gemini-flash-1.5-exp:free
+{
+  error: {
+    message: 'No endpoints found for google/gemini-flash-1.5-exp:free.',
+    code: 404
+  },
+  user_id: 'user_2vlYaXye1MGTyKlX0qfLZMJqEDp'
+}
+Testing model: openrouter/auto
+SUCCESS: {
+  role: 'assistant',
+  content: 'Hi there! Nice to meet you. How can I help today? You can ask me to explain something, help with writing or coding, translate text, plan a trip, summarize an article, or just chat. What would you like to do?',
+  refusal: null,
+  reasoning: null,
+  reasoning_details: [
+    {
+      type: 'reasoning.encrypted',
+      data: 'gAAAAABpsroIafwbNYRrkclHsTSITJkb2kgA4Y3THMNrnU2pOPeJ4bBjoRzVNIhyN32MU_nANqNSPcbU4ts1vmt_ju6tWPA03E8gkdd0OgEf4ljrSxT3Vb3t2-mE2lWf8suozXTKkGAta6kE-ZGbJfVhIWbUyH73vK-Fd7BbAqEuPFgX6AY3OhDHgCnnUtHdaZbezJLi4hdcsTOIznqo5JGQLq92IhLP9lgYEFJAaxmSIPEQwKTutoa5twv6bEbmcihpMJ9ZEJ5YiL0QbnAtGmCbOuRpfV4OTQmmdiQcvTd6klmvgGssI514y6JNcJd-yeALoK31HcGPCuX_9nKO_TR2hodO--ihea1AXGU5CARh6l1xeKBokJPUaloPHt5E8doNRP5O_xRhxnjMaVznjZ3eMxVaN3us4aIag4TET_M2d_5yuTA2goUQ4Ujdziw6VGw3cDVUX4SJkfIzwWkW3cxSRxkSyraTibFi5QN-ZGFEbiN2u5-nyTOnTycA5K5lJAINwsgR28SG2XJelVeu5Oorl9eRDVKaVOfEVj-_7IaAZyZQYGXRT61BINIxNh-FjyfO6Bmrr4bo609A_NYX60bHVks4IqeZ3qm4WUtJWC09hV3ioF2vECyCrqh3NP7PqebrPZeGJBRlvrFjtuqnXHscf9LesayChudYdYeW1d88T5pKn7fPn8TDgFbLr90t_jz8tbQLTZ46xPpIYBF3Ont4cESZ8OXf-lj9_t4DOTJOG_nXcK2fgbr6T8IyBGuKxkXLesv0jsS6nitV4ePSelrETWaQuYvBn0ob5xfVryQPKu5E6LxTSDqnzJqGLe1PlXnRdAAXpkMkgcNjZymsfGGcDsTrmA-agYas4kpRTgRCjC8lcfUG6Kvzw_zmSyZXiqQJIRJRPlWuXo28DIBEpnYQBluvbrU6igfS55f469JoG4HrrxjbZAkjbO5v7ixXlu9ZGXd-TF0D7ANbx8kjCZBTTYIiLD6qB_rMBqgw35gb1qa9R_4oxfifgoxG4aLiEPtJR5QDxmgmjYfVKTal0jIcA5ZTr5BhQuRJE1Yi4rzvPGBBrvgGL59Im1G8y7JXADrOCHaErpVTcVyZA7LsRyZetVBNUJZTvZJkLP9Zhe2slRQKmrwKeQEbuOTAoCsVRPSMz-C3SyIvZhXiwOV74rHd7juWpG4aMvXQMQhnRqSd_eVcAw-Res_FCExFz11GKuNUPT0_6oj_u3C7EJOSE2jzYDs1JXuEj7f9VQP618kJ4hvHZy2KwBOsKE89lc_I5jyxhhwl76C3FFEJVRv4XEndGSguAml24gTyqCwc8jfZGFSR3FUjE4W_GnjIxEZ14EUZ74GpA7LYEgDGaLVA4X4XdPQ3vApWD_O_7ETVT8vqGSvQiG5QIjz-bCJbyQMlSW15BFruNHaMEWs-5I11SCsJ3IguqyJDC_VX7M8MrX4-vDICa2ksNIH3czmNAWgyo8iQsD3PEuYkA94XZ1YLXWBUMDBDS-oJ55YJROsP-OYiZmgkgzBK_L35c7brq_Qd8hVpVqo4qoTgOuLAcDzdoeURXvLOAsJDcEIbcX8RcjxmgwF4rRHQq2kX5iGjcIMh7VJ6d1TSdojuX2TuEMMwADFsTQURAlHSrQuBMZlm7E_XY38crcaH_XJcZjtCtmlKfRM5HHODBxuzeayuNnRgOj_c2HxFQxR15BlmSNmzzDdc3tXe3stEGQueh5_BaEcYLzK40bnzmHdpFyspCtdjxud3M8236QPU2JqG5u7zdz9-yum_1M56VlNrAFHor_fiqg1GmPVYmPn4102B3yayuhVmuiRgS4sP2g3Z8rLhzIOvim1oJo6AsSmkZNmX82-E3vNduxz5cb4GaJb5fZcS4utnbOpVj4EduyXHkyZv12izldObxUfV97WhaTgX9-F0ByAcuP866B2NSVZZcr3Kw6VAcvtIcHQeWbwbieBNPpVo9Va-P215zvLiahfE9Tamiv8ge1c9rQuDCRW8JuyRny1qHeCtcXT129Qu1pQO2D-2xKjB58TYHahGt6qmrUZn7HIOKQnOqKFLGjtkJ6tJUDcIsBlo_7hj2i2CMTMYwvusqHCj2eX5o4zw8gSFkbpWuRTRHif236nNy-lrCZWrVwj71mlckADMDPl_QLNRkumNTmrT3QfNZ9oTBqQmKC3MRTNyIp_DFnyhEU-3WIspj9fsKEfjrwyi82lg8tCb_dwe-npmWgzulEnoTsxyDLtdLopCc3jY0ir-7Aqh-S_zPszUHLAd70rtWypHWMYkJwcjJmQHmC_juMPl_7U8Bal3Iia2PK8I_AegwJIW6mQl7397zS_3eYD4XzzcCPLaiKvFGiBrgUatvYrK2yXzjs5ySDY_Y6w9Yi78teVxuUWYQzGkH18pRKnTBVtZiPSHStToJ6daryW6bqJ3tOY9OLB1zF8PWd-Mq6GMwZcdSboOF4T3e3iCamM2avQYxTPyMSrPsqs40pTOQmKA2YmrXU_-YP3I1TCE2WC2FJh7DWK7H_wlb-0_XvzG1qn1e4XqXCK4ACx5XaeDkeMS4pJnn6Pq4YtY_K64A368JOip85zAOx3c7GUXUAlhQqDFS7m76RuSNDy9QYqKhD-VqTIVEEDhR6WbA76NSJlUHo_nmN-Z1hxK4nkBs2Kpx60uolrM9ujNgUhPsesuDY4=',
+      format: 'openai-responses-v1',
+      id: 'rs_076640af133b6ef10169b2ba05b08481968eec292eed844016',
+      index: 0
+    }
+  ]
+}
+Testing model: google/gemini-2.0-flash:free
+{
+  error: {
+    message: 'google/gemini-2.0-flash:free is not a valid model ID',
+    code: 400
+  },
+  user_id: 'user_2vlYaXye1MGTyKlX0qfLZMJqEDp'
+}
