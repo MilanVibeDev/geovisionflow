@@ -196,9 +196,8 @@ const Dashboard = () => {
         }
 
         const fetchData = async () => {
-            // In production (Unified hosting), apiUrl should be empty to use relative paths.
-            // In local development, it defaults to localhost:5000.
-            const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
+            // Ensure we use relative paths in production for unified hosting
+            const apiUrl = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
 
             try {
                 const response = await axios.post(`${apiUrl}/api/analyze`, {
