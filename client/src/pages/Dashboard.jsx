@@ -196,8 +196,8 @@ const Dashboard = () => {
         }
 
         const fetchData = async () => {
-            // Ensure we use relative paths in production for unified hosting
-            const apiUrl = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+            // Priority: 1. Explicit VITE_API_URL, 2. Current domain (Unified hosting)
+            const apiUrl = import.meta.env.VITE_API_URL || '';
 
             try {
                 const response = await axios.post(`${apiUrl}/api/analyze`, {
@@ -205,9 +205,28 @@ const Dashboard = () => {
                     keyword: location.state?.keyword || 'general',
                     country: location.state?.country || 'global'
                 });
+
+                // If the response is HTML, we hit the frontend SPA instead of the backend API
+                if (typeof response.data === 'string' && response.data.trim().startsWith('<!doctype html')) {
+                    throw new Error('CONFIG_ERROR: The request hit the frontend instead of the API. Your VITE_API_URL might be misconfigured.');
+                }
+
                 setData(response.data);
                 setLoading(false);
             } catch (err) {
+                // If it's our custom config error, handle it cleanly
+                if (err.message?.includes('CONFIG_ERROR')) {
+                    setError('The application is hitting the wrong server. Please check your VITE_API_URL environment variable.');
+                    setErrorInfo({
+                        type: 'SERVER_ERROR',
+                        label: 'Configuration Error',
+                        message: 'The frontend is trying to talk to itself instead of the backend API.',
+                        color: 'var(--accent-coral)',
+                        icon: AlertTriangle
+                    });
+                    setLoading(false);
+                    return;
+                }
                 const classified = classifyClientError(err);
                 // Log classified error to the browser console
                 const icons = { API_ERROR: '🔴 [API ERROR]', NETWORK_ERROR: '🟠 [NETWORK ERROR]', SERVER_ERROR: '🟡 [SERVER ERROR]' };
