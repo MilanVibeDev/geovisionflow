@@ -199,7 +199,7 @@ const Dashboard = () => {
             // In production (Unified hosting), apiUrl should be empty to use relative paths.
             // In local development, it defaults to localhost:5000.
             const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
-            
+
             try {
                 const response = await axios.post(`${apiUrl}/api/analyze`, {
                     url: location.state.url,
@@ -277,6 +277,25 @@ const Dashboard = () => {
                         </p>
                     )}
                     <button className="btn btn-outline" onClick={() => navigate('/')}>Go Back</button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!data || !data.scores) {
+        return (
+            <div className="dashboard">
+                <div className="dashboard-main" style={{ textAlign: 'center', marginTop: '10%' }}>
+                    <h2>Unexpected Response</h2>
+                    <p className="hero-subtitle">The server returned an empty or malformed result. Please try again.</p>
+                    <div style={{
+                        marginTop: '1.5rem', padding: '1rem', background: 'rgba(0,0,0,0.05)',
+                        borderRadius: '8px', fontSize: '0.75rem', color: 'var(--text-light)',
+                        maxWidth: '100%', overflowX: 'auto', whiteSpace: 'pre-wrap', textAlign: 'left'
+                    }}>
+                        <strong>Raw Data:</strong> {data ? JSON.stringify(data, null, 2) : 'null/undefined'}
+                    </div>
+                    <button className="btn btn-outline" onClick={() => navigate('/')} style={{ marginTop: '1.5rem' }}>Go Back</button>
                 </div>
             </div>
         );

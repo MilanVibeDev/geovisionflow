@@ -167,7 +167,7 @@ Return ONLY valid JSON, no explanation text outside the JSON:
 }
         `;
 
-        const model = process.env.AI_MODEL || 'gemini-1.5-flash';
+        const model = process.env.AI_MODEL || 'gemini-flash-latest';
 
         let response;
         let attempts = 0;
