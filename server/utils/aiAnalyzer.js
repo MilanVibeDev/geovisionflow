@@ -52,25 +52,33 @@ const logClassifiedError = (context, errInfo) => {
     console.error('');
 };
 
-/**
- * Sends scraped website data to the AI for honest, criteria-based analysis.
- *
- * Framework definitions (used in the prompt):
- *  - SEO  → improves website position on Google (backlinks, keywords, on-page)
- *  - AIO  → helps AI systems pull information FROM your site when answering questions
- *  - GEO  → makes AI systems MENTION YOUR BUSINESS to users
- *  - AEO  → Google AI Overview answers a question directly from your page
- */
 const getAIAudit = async (seoData, keyword, country) => {
     try {
         const prompt = `
-You are an expert SEO, AIO, and GEO analyst. Your task is to analyze a website's data and return HONEST, CRITICAL, and TRUTHFUL scores and recommendations — never inflate scores to make the user feel good.
+You are an expert SEO / AIO / GEO / AEO analyst. Your task is to analyze a website's data and return HONEST, CRITICAL, and TRUTHFUL scores and recommendations — never inflate scores to make the user feel good.
 
 === FRAMEWORK DEFINITIONS ===
-- SEO  : Improves search engine ranking (Google). Key factors: backlinks (external), relevant long-tail keywords (4+ words), search intent match, on-page optimisation (title, description, H1, image alt text, URL clarity), page speed, and mobile-friendliness.
-- AIO  : Helps AI assistants (ChatGPT, Gemini, etc.) pull content FROM your site when answering questions. Key factors: being in the top 3 Google results, clear structured content, semantic clarity, FAQ-style answers, LLM-readable text.
-- GEO  : Makes AI assistants MENTION YOUR BRAND when recommending businesses to users. Key factors: frequency of credible brand mentions, brand authority, consistency of NAP (Name/Address/Phone), presence in niche-relevant sources.
-- AEO  : Makes Google's AI Overview feature answer questions directly FROM your page. Key factors: clear direct answers near the top of the page, FAQ schema, structured data (JSON-LD), strong brand mentions, concise and authoritative content.
+- SEO  : Improves website position on Google.
+   • Backlinks and mentions on other relevant websites.
+   • Keyword demand + relevance to the actual solution (e.g. "automation agency in serbia").
+   • Correct search intent match (blog vs landing vs product vs tool).
+   • On-page optimisation (title/description/H1, headings, image alt text, URL clarity, internal navigation).
+   • Page speed and mobile friendliness.
+- AIO  : Helps AI assistants (ChatGPT, Gemini, Perplexity, etc.) pull information FROM the site when answering questions.
+   • Being in (or worthy of) top-3 Google for that query.
+   • Clear, structured, factual content; FAQ-style answers; concise explanations.
+   • Tables, lists, and schemas that make stats and steps easy to extract.
+   • Blogs that answer very specific, long-tail questions, in human style (not generic AI fluff).
+- GEO  : Makes AI assistants actively MENTION THIS BRAND when recommending businesses.
+   • Clear brand name + what it does + which industries it helps (e.g. tech/agency/SaaS).
+   • Location / region is explicit (city/country, "in Serbia", etc.).
+   • Proof and depth: case studies, "from our experience", specific results.
+   • Implied off-site presence: mentions/reviews/case studies that would realistically exist on other niche websites.
+- AEO  : Google AI (AI Overviews) answers questions DIRECTLY from this page.
+   • Direct, 40–60 word answers for FAQs.
+   • Specific "how we did X for Y" stories, not generic advice.
+   • Structured data (FAQPage, HowTo, LocalBusiness) and tables that are easy to quote.
+   • The page combines text, images, and maybe videos/diagrams to support clear answers.
 
 === WEBSITE DATA TO ANALYZE ===
 Target Keyword: "${keyword || 'not specified'}"
@@ -85,25 +93,36 @@ Has Viewport Meta: ${seoData.hasViewport ? 'Yes' : 'No'}
 Content Sample (first 2000 chars):
 "${seoData.textContent.substring(0, 2000)}"
 
-=== SCORING CRITERIA ===
+=== SCORING CRITERIA (MUST FOLLOW) ===
 
 AIO Score (0-100) — Can AI crawlers extract useful info from this page?
-  - Content is well-structured and semantically clear: +20
-  - Has clear answers to common questions in the niche: +20
-  - Long-form, informative content (>800 words): +15
-  - Clean headings hierarchy (H1, H2, H3): +15
-  - Fast, mobile-friendly page (inferred from viewport tag): +10
-  - No fluff or over-promotion, factual and helpful: +10
-  - Presence of entity data (company name, location, service clearly stated): +10
-  Score HONESTLY. A purely promotional page with no educational value scores 10-30. A well-structured FAQ-heavy page scores 70-90.
+  - Content is well-structured and semantically clear (good H1/H2/H3, sections): +15
+  - Has clear answers to specific questions people actually ask (FAQs, "how to", "best X for Y"): +20
+  - Uses long-tail, niche-specific phrasing (4+ word phrases like "automation agency in serbia for marketing agencies"): +10
+  - Long-form, informative content (>800 words) that is easy to skim with sub-headings and lists: +10
+  - FAQ answers are roughly 40–60 words and to the point: +10
+  - Clean headings hierarchy (only one H1, logical H2s): +10
+  - Fast, mobile-friendly page (viewport meta present and content not bloated): +10
+  - No fluff or obvious generic AI text; includes phrases like "from our experience" and specific case details: +10
+  - Structured tables or bullet lists that summarise stats, processes, or comparisons: +5
+  Score HONESTLY. A purely promotional, generic landing page with no specific answers scores 10–30. A well-structured, FAQ‑rich, niche page scores 70–90.
 
 GEO Score (0-100) — How likely is an AI to RECOMMEND this brand?
-  - Brand name is clearly and repeatedly stated in content: +20
-  - Specific location or region is mentioned: +20
-  - Niche and service are crystal clear from the content: +20
-  - Content shows authority/expertise in niche (original insights, not generic): +20
-  - Presence of social proof signals (reviews, testimonials, case studies): +20
-  Score HONESTLY. Generic or thin pages score 10-30. Branded, location-specific, expert content scores 70-90.
+  - Brand name and website are clearly and repeatedly mentioned in a natural way: +20
+  - At least one clear location / region (city, country, "in Serbia", etc.) is mentioned: +15
+  - The industries and niches the brand serves are explicit (e.g. tech, agencies, SaaS, e‑commerce): +10
+  - Content deeply explains HOW the brand helps these niches (3+ concrete examples, case studies, or scenarios): +15
+  - Presence of social proof: testimonials, "(Google) reviews", case study stories, YouTube videos, or Reddit posts embedded / referenced: +15
+  - FAQ or blog titles are human and story‑like (e.g. "How an animated video attracted more customers to XYZ company", not generic AI titles): +10
+  - Navigation makes it obvious what the brand offers and where to click for each service: +5
+  - 404 and support pages help users quickly find alternative pages or a search bar: +10
+  Score HONESTLY. Generic brochure pages with weak branding score 10–30. Strong, story‑driven, proof‑heavy brand pages score 70–90.
+
+AEO Influence (do NOT give a separate numeric score, but use this when deciding AIO/GEO scores and recommendations):
+  - The page contains clear, copy‑pastable answers to niche questions in ~40–60 words.
+  - FAQs and sections read like direct answers, not intros or vague marketing.
+  - Structured tables, lists, and diagrams make statistics and comparisons easy to quote.
+  - The content is written in a way that could realistically appear in Google's AI Overview snippets.
 
 LLM Readability: How easily can a language model parse this page?
   - "Good": Clean structure, semantic headings, factual content, >600 words
@@ -117,11 +136,16 @@ AI Snippet Probability: Likelihood of being included in AI-generated answers
 
 === INSTRUCTIONS ===
 1. Be CRITICAL and HONEST. If the page is missing key elements, score it LOW.
-2. contentGaps should list REAL, specific things that are missing or weak — not generic advice.
-3. actionPlan tasks should be SPECIFIC to the content and keyword analyzed, not boilerplate.
-4. geoSuggestions: Provide 4 specific, actionable suggestions to improve GEO score.
-5. geoRoadmap: Break down into technical, content, and visibility steps with SPECIFIC advice.
-6. suggestedH1 and suggestedMetaTitle must include the target keyword "${keyword}" and follow best practices.
+2. Use the following heuristics DIRECTLY in your analysis:
+   • SEO: demand + relevance of the keyword, search intent (blog vs landing vs product vs tool), clear URL text, on-page elements (titles, headings, alt text), internal navigation clarity, lack of duplicate content on many pages.
+   • AIO: whether this page actually answers specific questions people in this niche ask (like questions you would see in "People also ask" on Google or on Reddit threads), and whether the answers are concise, clear, and structured.
+   • GEO: how strongly the brand is tied to specific niches/industries and locations, and how likely it is that users would see this brand as a recommended option in AI answers.
+   • AEO: how "snippet-ready" the content is — short, clear answer blocks, tables, FAQs with 40–60 word replies, clear "from our experience" style storytelling.
+3. contentGaps MUST be concrete and based on the page. Example: "No mention of specific industries (e.g. agencies, SaaS)", "FAQ answers are too long and not 40–60 words".
+4. actionPlan tasks MUST be SPECIFIC to this page and keyword, and should map to SEO, AIO, GEO or AEO (or combinations). Each task should feel like something a human strategist would actually do next on this page.
+5. geoSuggestions: Provide 4 specific, actionable suggestions to improve GEO score, focusing on brand mentions, industries, reviews, case studies, and local signals.
+6. geoRoadmap: Break down into technical, content, and visibility steps with SPECIFIC advice (e.g. "Implement LocalBusiness JSON‑LD with city + industry", not just "add schema").
+7. suggestedH1 and suggestedMetaTitle must include the target keyword "${keyword}" and follow best practices (human‑sounding, not generic AI titles).
 
 Return ONLY valid JSON, no explanation text outside the JSON:
 {

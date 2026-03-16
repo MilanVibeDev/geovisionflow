@@ -197,10 +197,11 @@ const Dashboard = () => {
 
         const fetchData = async () => {
             // Priority: 1. Explicit VITE_API_URL, 2. Current domain (Unified hosting)
-            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const base = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+            const apiUrl = base ? `${base}/api/analyze` : '/api/analyze';
 
             try {
-                const response = await axios.post(`${apiUrl}/api/analyze`, {
+                const response = await axios.post(apiUrl, {
                     url: location.state.url,
                     keyword: location.state?.keyword || 'general',
                     country: location.state?.country || 'global'
