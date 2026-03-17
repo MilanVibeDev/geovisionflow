@@ -188,6 +188,7 @@ const Dashboard = () => {
     const [error, setError] = useState('');
     const [errorInfo, setErrorInfo] = useState(null); // { type, label, message, color, icon }
     const [activeTab, setActiveTab] = useState('overview');
+    const [downloadingPdf, setDownloadingPdf] = useState(false);
 
     useEffect(() => {
         if (!location.state?.url) {
@@ -322,6 +323,44 @@ const Dashboard = () => {
 
     const { scores, seoData, aiAudit, techDeductions = [] } = data;
 
+    const handleDownloadPdf = async () => {
+        if (!location.state?.url || downloadingPdf) return;
+
+        const base = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+        const pdfUrl = base ? `${base}/api/report/pdf` : '/api/report/pdf';
+
+        try {
+            setDownloadingPdf(true);
+            const response = await axios.post(pdfUrl, {
+                url: location.state.url,
+                keyword: location.state?.keyword || 'general',
+                country: location.state?.country || 'global'
+            }, { responseType: 'blob' });
+
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const dlUrl = window.URL.createObjectURL(blob);
+
+            const hostname = (() => {
+                try { return new URL(location.state.url).hostname; } catch { return 'website'; }
+            })();
+            const filename = `geovisionflow-audit-${hostname}.pdf`;
+
+            const a = document.createElement('a');
+            a.href = dlUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(dlUrl);
+        } catch (err) {
+            const classified = classifyClientError(err);
+            setError(classified.message);
+            setErrorInfo(classified);
+        } finally {
+            setDownloadingPdf(false);
+        }
+    };
+
     return (
         <div className="dashboard">
             {/* SIDEBAR */}
@@ -364,6 +403,14 @@ const Dashboard = () => {
                         </div>
                         <a href={data?.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-gray)' }}>{data?.url}</a>
                     </div>
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleDownloadPdf}
+                        disabled={downloadingPdf}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                        {downloadingPdf ? 'Preparing PDF…' : 'Download PDF'}
+                    </button>
                 </header>
 
                 {/* ══ OVERVIEW TAB ══════════════════════════════════════════════════════ */}

@@ -95,119 +95,125 @@ const calcTechScore = (seoData, perfScore) => {
     };
 };
 
+const runAnalysis = async ({ url, keyword, country }) => {
+    if (!url) {
+        const err = new Error('URL is required');
+        err.statusCode = 400;
+        throw err;
+    }
+
+    const targetCountry = country !== 'global' ? (country || 'global') : 'global';
+    const targetKeyword = keyword || 'general';
+
+    console.log(`Starting analysis for ${url} (KW: ${targetKeyword}, Country: ${targetCountry})`);
+
+    // 0. Check Cache (Audit within last 24 hours)
+    try {
+        const yesterday = new Date();
+        yesterday.setHours(yesterday.getHours() - 24);
+
+        const { data: cachedAudit, error: cacheError } = await supabase
+            .from('audits')
+            .select('*')
+            .eq('url', url)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (!cacheError && cachedAudit && cachedAudit.length > 0) {
+            const lastAuditDate = new Date(cachedAudit[0].created_at);
+            const hasResults = cachedAudit[0].ai_score !== null && cachedAudit[0].geo_score !== null;
+
+            if (lastAuditDate > yesterday && hasResults) {
+                console.log(`Using cached result for ${url}`);
+                return {
+                    url: cachedAudit[0].url,
+                    scores: {
+                        technical: cachedAudit[0].tech_score,
+                        performance: cachedAudit[0].perf_score,
+                        aio: cachedAudit[0].ai_score,
+                        geo: cachedAudit[0].geo_score
+                    },
+                    techDeductions: cachedAudit[0].seo_data?.techDeductions || [],
+                    seoData: cachedAudit[0].seo_data,
+                    perfData: cachedAudit[0].perf_data,
+                    aiAudit: cachedAudit[0].ai_audit,
+                    cached: true
+                };
+            } else if (lastAuditDate > yesterday && !hasResults) {
+                console.log(`Detected failed audit in cache for ${url}, skipping for fresh analysis`);
+            }
+        }
+    } catch (cacheEx) {
+        console.error('Cache check error:', cacheEx.message);
+    }
+
+    // 1. Scrape Website
+    console.log('Step 1: Scraping website...');
+    const seoData = await scrapeWebsite(url);
+    console.log('Step 1: Scraping successful');
+
+    // 2. Performance (PageSpeed)
+    console.log('Step 2: Getting PageSpeed data...');
+    const perfData = await getPageSpeed(url);
+    console.log('Step 2: PageSpeed successful');
+
+    // 3. Calculate Technical Score — formula-based, honest
+    console.log('Step 3: Calculating technical score...');
+    const { score: techScore, deductions: techDeductions } = calcTechScore(seoData, perfData.score);
+
+    // 4. AI Analysis
+    console.log('Step 4: Starting AI analysis...');
+    const aiCountry = targetCountry === 'global' ? seoData.detectedGeo : targetCountry;
+    const aiAudit = await getAIAudit(seoData, targetKeyword, aiCountry);
+    console.log('Step 4: AI analysis completed');
+
+    const result = {
+        url,
+        scores: {
+            technical: techScore,
+            performance: perfData.score ?? null,
+            aio: aiAudit.aioScore ?? null,
+            geo: aiAudit.geoScore ?? null
+        },
+        techDeductions,
+        seoData: {
+            ...seoData,
+            targetKeyword,
+            targetCountry
+        },
+        perfData,
+        aiAudit,
+        cached: false
+    };
+
+    // 5. Save to Supabase
+    try {
+        await supabase.from('audits').insert([{
+            url: result.url,
+            tech_score: result.scores.technical,
+            perf_score: result.scores.performance,
+            ai_score: result.scores.aio,
+            geo_score: result.scores.geo,
+            seo_data: { ...result.seoData, techDeductions },
+            ai_audit: result.aiAudit,
+            perf_data: result.perfData
+        }]);
+        console.log('Saved new audit to database');
+    } catch (dbError) {
+        console.error('Failed to save to Supabase:', dbError.message);
+    }
+
+    return result;
+};
+
 const analyzeWebsite = async (req, res) => {
     try {
-        const { url, keyword, country } = req.body;
-        if (!url) {
-            return res.status(400).json({ error: 'URL is required' });
-        }
-
-        const targetCountry = country !== 'global' ? (country || 'global') : 'global';
-        const targetKeyword = keyword || 'general';
-
-        console.log(`Starting analysis for ${url} (KW: ${targetKeyword}, Country: ${targetCountry})`);
-
-        // 0. Check Cache (Audit within last 24 hours)
-        try {
-            const yesterday = new Date();
-            yesterday.setHours(yesterday.getHours() - 24);
-
-            const { data: cachedAudit, error: cacheError } = await supabase
-                .from('audits')
-                .select('*')
-                .eq('url', url)
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-            if (!cacheError && cachedAudit && cachedAudit.length > 0) {
-                const lastAuditDate = new Date(cachedAudit[0].created_at);
-                const hasResults = cachedAudit[0].ai_score !== null && cachedAudit[0].geo_score !== null;
-
-                if (lastAuditDate > yesterday && hasResults) {
-                    console.log(`Using cached result for ${url}`);
-                    return res.json({
-                        url: cachedAudit[0].url,
-                        scores: {
-                            technical: cachedAudit[0].tech_score,
-                            performance: cachedAudit[0].perf_score,
-                            aio: cachedAudit[0].ai_score,
-                            geo: cachedAudit[0].geo_score
-                        },
-                        techDeductions: cachedAudit[0].seo_data?.techDeductions || [],
-                        seoData: cachedAudit[0].seo_data,
-                        perfData: cachedAudit[0].perf_data,
-                        aiAudit: cachedAudit[0].ai_audit,
-                        cached: true
-                    });
-                } else if (lastAuditDate > yesterday && !hasResults) {
-                    console.log(`Detected failed audit in cache for ${url}, skipping for fresh analysis`);
-                }
-            }
-        } catch (cacheEx) {
-            console.error('Cache check error:', cacheEx.message);
-        }
-
-        // 1. Scrape Website
-        console.log('Step 1: Scraping website...');
-        const seoData = await scrapeWebsite(url);
-        console.log('Step 1: Scraping successful');
-
-        // 2. Performance (PageSpeed)
-        console.log('Step 2: Getting PageSpeed data...');
-        const perfData = await getPageSpeed(url);
-        console.log('Step 2: PageSpeed successful');
-
-        // 3. Calculate Technical Score — formula-based, honest
-        console.log('Step 3: Calculating technical score...');
-        const { score: techScore, deductions: techDeductions } = calcTechScore(seoData, perfData.score);
-
-        // 4. AI Analysis via OpenRouter
-        console.log('Step 4: Starting AI analysis...');
-        const aiCountry = targetCountry === 'global' ? seoData.detectedGeo : targetCountry;
-        const aiAudit = await getAIAudit(seoData, targetKeyword, aiCountry);
-        console.log('Step 4: AI analysis completed');
-
-        const result = {
-            url,
-            scores: {
-                technical: techScore,
-                performance: perfData.score ?? null,
-                aio: aiAudit.aioScore ?? null,       // AI Input Optimisation — can AI pull info from your page?
-                geo: aiAudit.geoScore ?? null        // Generative Engine Optimisation — will AI mention your brand?
-            },
-            techDeductions,
-            seoData: {
-                ...seoData,
-                targetKeyword,
-                targetCountry
-            },
-            perfData,
-            aiAudit,
-            cached: false
-        };
-
-        // 5. Save to Supabase
-        try {
-            await supabase.from('audits').insert([{
-                url: result.url,
-                tech_score: result.scores.technical,
-                perf_score: result.scores.performance,
-                ai_score: result.scores.aio,
-                geo_score: result.scores.geo,
-                seo_data: { ...result.seoData, techDeductions },
-                ai_audit: result.aiAudit,
-                perf_data: result.perfData
-            }]);
-            console.log('Saved new audit to database');
-        } catch (dbError) {
-            console.error('Failed to save to Supabase:', dbError.message);
-        }
-
+        const result = await runAnalysis(req.body || {});
         res.json(result);
     } catch (error) {
         console.error('Error during analysis:', error);
-        res.status(500).json({ error: 'Failed to analyze website. ' + error.message });
+        res.status(error.statusCode || 500).json({ error: 'Failed to analyze website. ' + error.message });
     }
 };
 
-module.exports = { analyzeWebsite };
+module.exports = { analyzeWebsite, runAnalysis };

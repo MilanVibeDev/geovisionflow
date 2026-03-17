@@ -324,4 +324,79 @@ Return ONLY valid JSON, no explanation text outside the JSON:
     }
 };
 
-module.exports = { getAIAudit };
+/**
+ * Create AI-written narrative for a PDF report.
+ * Returns a small JSON payload so PDF layout stays consistent.
+ */
+const getAIReport = async (analysisResult) => {
+    try {
+        const url = analysisResult?.url || '';
+        const scores = analysisResult?.scores || {};
+        const seoData = analysisResult?.seoData || {};
+        const aiAudit = analysisResult?.aiAudit || {};
+
+        const prompt = `
+You are an expert SEO / AIO / GEO / AEO strategist.
+Write concise, high-signal report text for a PDF. Be honest and practical.
+
+Website: ${url}
+Scores:
+- Technical SEO: ${scores.technical ?? 'N/A'}
+- Page Speed: ${scores.performance ?? 'N/A'}
+- AIO: ${scores.aio ?? 'N/A'}
+- GEO: ${scores.geo ?? 'N/A'}
+
+Target keyword: ${seoData.targetKeyword || 'general'}
+Target region: ${seoData.targetCountry || 'global'}
+
+Scraped signals:
+- Title present: ${seoData.title ? 'Yes' : 'No'}
+- Description present: ${seoData.description ? 'Yes' : 'No'}
+- H1 count: ${seoData.h1Count ?? 'N/A'}
+- H2 count: ${Array.isArray(seoData.h2Tags) ? seoData.h2Tags.length : 'N/A'}
+- Word count: ${seoData.wordCount ?? 'N/A'}
+- Images with alt: ${(seoData.imagesWithAlt ?? 0)}/${(seoData.imagesCount ?? 0)}
+- Mobile viewport: ${seoData.hasViewport ? 'Yes' : 'No'}
+
+AI audit context:
+- AIO rationale: ${aiAudit?.scoringRationale?.aio || 'N/A'}
+- GEO rationale: ${aiAudit?.scoringRationale?.geo || 'N/A'}
+- Content gaps: ${(aiAudit?.contentGaps || []).slice(0, 8).join(' | ') || 'N/A'}
+- Action plan: ${(aiAudit?.actionPlan || []).slice(0, 8).map(p => `${p.priority}: ${p.task} (${p.impact})`).join(' | ') || 'N/A'}
+
+Output ONLY valid JSON:
+{
+  "executiveSummary": "3-6 sentences max. Mention what to fix first and why.",
+  "topImprovements": ["10 items max. Start with the highest impact actions."],
+  "contentGaps": ["up to 8 concrete gaps"]
+}
+        `.trim();
+
+        const model = process.env.AI_MODEL || 'gemini-flash-latest';
+        const response = await axios.post(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+            {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.2,
+                    topP: 0.8,
+                    maxOutputTokens: 1200
+                }
+            },
+            { timeout: 35000 }
+        );
+
+        const candidate = response?.data?.candidates?.[0];
+        let resultText = candidate?.content?.parts?.[0]?.text || '';
+        resultText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const jsonStart = resultText.indexOf('{');
+        const jsonEnd = resultText.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1) resultText = resultText.substring(jsonStart, jsonEnd + 1);
+
+        return JSON.parse(resultText);
+    } catch (e) {
+        return null;
+    }
+};
+
+module.exports = { getAIAudit, getAIReport };

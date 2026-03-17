@@ -18,7 +18,13 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const argPort = (() => {
+    const idx = process.argv.indexOf('--port');
+    if (idx !== -1 && process.argv[idx + 1]) return Number(process.argv[idx + 1]);
+    return null;
+})();
+
+const PORT = process.env.PORT ? Number(process.env.PORT) : (argPort || 5000);
 
 app.use(cors());
 app.use(express.json());
