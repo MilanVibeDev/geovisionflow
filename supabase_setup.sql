@@ -23,3 +23,19 @@ ALTER TABLE public.audits ENABLE ROW LEVEL SECURITY;
 -- Since there is no user authentication yet, allow anonymous inserts and reads
 CREATE POLICY "Allow anonymous insert" ON public.audits FOR INSERT TO anon WITH CHECK (true);
 CREATE POLICY "Allow anonymous read" ON public.audits FOR SELECT TO anon USING (true);
+
+-- ==========================================
+-- USER PROFILE TABLE (For Auth and Sign in)
+-- Execute this to store additional user info 
+-- beyond the default auth.users table
+-- ==========================================
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID REFERENCES auth.users(id) PRIMARY KEY,
+    email TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS for profiles if you wish
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can read own profile" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() = id);
+CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);

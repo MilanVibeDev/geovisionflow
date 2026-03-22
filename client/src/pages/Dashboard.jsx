@@ -179,6 +179,47 @@ const NullScoreNotice = ({ label }) => (
     </div>
 );
 
+// ── LockOverlay ───────────────────────────────────────────────────────────────
+const LockOverlay = ({ navigate, analyzedUrl, keyword, country }) => (
+    <div
+        style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            paddingTop: '4rem',
+            zIndex: 10
+        }}
+    >
+        <div
+            style={{
+                maxWidth: 420,
+                width: '100%',
+                background: 'rgba(17, 24, 39, 0.9)',
+                backdropFilter: 'blur(8px)',
+                borderRadius: '16px',
+                padding: '1.75rem 1.75rem 1.5rem',
+                boxShadow: '0 18px 45px rgba(15,23,42,0.55)',
+                color: 'white',
+                textAlign: 'center'
+            }}
+        >
+            <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Unlock full improvement roadmap</h3>
+            <p style={{ margin: '0.75rem 0 1.25rem', fontSize: '0.9rem', color: '#E5E7EB' }}>
+                Sign in to see detailed tasks, content gaps, GEO roadmap, and AI-ready copy suggestions for your page.
+            </p>
+            <button
+                className="btn btn-primary"
+                style={{ width: '100%' }}
+                onClick={() => navigate('/auth', { state: { returnUrl: analyzedUrl, keyword, country } })}
+            >
+                Sign In to see results
+            </button>
+        </div>
+    </div>
+);
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 const Dashboard = () => {
     const location = useLocation();
@@ -187,8 +228,11 @@ const Dashboard = () => {
     const [data, setData] = useState(null);
     const [error, setError] = useState('');
     const [errorInfo, setErrorInfo] = useState(null); // { type, label, message, color, icon }
+    const [limitError, setLimitError] = useState(null); // { hoursLeft, limit }
     const [activeTab, setActiveTab] = useState('overview');
     const [downloadingPdf, setDownloadingPdf] = useState(false);
+    const pdfEnabled = import.meta.env.VITE_ENABLE_PDF === 'true';
+    const isSignedIn = !!localStorage.getItem('seocalc_token');
 
     useEffect(() => {
         if (!location.state?.url) {
@@ -202,10 +246,13 @@ const Dashboard = () => {
             const apiUrl = base ? `${base}/api/analyze` : '/api/analyze';
 
             try {
+                const token = localStorage.getItem('seocalc_token');
                 const response = await axios.post(apiUrl, {
                     url: location.state.url,
                     keyword: location.state?.keyword || 'general',
                     country: location.state?.country || 'global'
+                }, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {}
                 });
 
                 // If the response is HTML, we hit the frontend SPA instead of the backend API
@@ -216,6 +263,15 @@ const Dashboard = () => {
                 setData(response.data);
                 setLoading(false);
             } catch (err) {
+                // Check for rate limit (429)
+                if (err.response?.status === 429 || err.response?.data?.error === 'DAILY_LIMIT_REACHED') {
+                    setLimitError({
+                        hoursLeft: err.response.data?.hoursLeft ?? 24,
+                        limit: err.response.data?.limit ?? 1
+                    });
+                    setLoading(false);
+                    return;
+                }
                 // If it's our custom config error, handle it cleanly
                 if (err.message?.includes('CONFIG_ERROR')) {
                     setError('The application is hitting the wrong server. Please check your VITE_API_URL environment variable.');
@@ -254,6 +310,44 @@ const Dashboard = () => {
             </div>
         </div>
     );
+
+    if (limitError) {
+        return (
+            <div className="dashboard">
+                <div className="dashboard-main" style={{ textAlign: 'center', marginTop: '8%', maxWidth: '560px', margin: '8% auto 0' }}>
+                    <div style={{
+                        width: '80px', height: '80px', borderRadius: '50%',
+                        background: 'rgba(79, 70, 229, 0.1)', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem'
+                    }}>
+                        <Shield size={38} color="var(--primary)" />
+                    </div>
+                    <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                        padding: '0.3rem 0.85rem', borderRadius: '20px',
+                        background: 'rgba(79, 70, 229, 0.1)', border: '1px solid rgba(79, 70, 229, 0.2)',
+                        fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)',
+                        textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem'
+                    }}>
+                        <AlertCircle size={13} />
+                        Daily Limit Reached
+                    </div>
+                    <h2 style={{ marginTop: '0.5rem', fontSize: '1.5rem' }}>You're out of credits for today</h2>
+                    <p className="hero-subtitle" style={{ margin: '0.75rem 0 1.5rem', fontSize: '0.92rem', lineHeight: 1.6 }}>
+                        To keep the service fast and free for everyone, we limit each user to {limitError.limit} full AI analysis per day.
+                        <br/><br/>
+                        <strong>Your limit resets in {limitError.hoursLeft} hour{limitError.hoursLeft !== 1 ? 's' : ''}.</strong>
+                    </p>
+                    <button className="btn btn-primary" onClick={() => navigate('/')}>Go Back Home</button>
+                    {!isSignedIn && (
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-light)', marginTop: '2rem' }}>
+                            Are you a registered user? <span style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }} onClick={() => navigate('/auth')}>Sign In</span>
+                        </p>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     if (error) {
         const ErrIcon = errorInfo?.icon || AlertTriangle;
@@ -403,21 +497,22 @@ const Dashboard = () => {
                         </div>
                         <a href={data?.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-gray)' }}>{data?.url}</a>
                     </div>
-                    <button
-                        className="btn btn-primary"
-                        onClick={handleDownloadPdf}
-                        disabled={downloadingPdf}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-                    >
-                        {downloadingPdf ? 'Preparing PDF…' : 'Download PDF'}
-                    </button>
+                    {pdfEnabled && (
+                        <button
+                            className="btn btn-primary"
+                            onClick={handleDownloadPdf}
+                            disabled={downloadingPdf}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                        >
+                            {downloadingPdf ? 'Preparing PDF…' : 'Download PDF'}
+                        </button>
+                    )}
                 </header>
 
                 {/* ══ OVERVIEW TAB ══════════════════════════════════════════════════════ */}
                 {activeTab === 'overview' && (
                     <>
-
-
+                        {/* Top scores are always visible */}
                         <div className="score-grid">
                             <ScoreCard
                                 title="Technical SEO"
@@ -453,116 +548,135 @@ const Dashboard = () => {
                             />
                         </div>
 
-                        {/* AI Scoring Rationale */}
-                        {aiAudit?.scoringRationale && (scores.aio !== null || scores.geo !== null) && (
-                            <div className="info-panel" style={{ marginTop: '1.5rem' }}>
-                                <h3 className="panel-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <Info size={17} color="var(--primary)" /> Why These Scores?
-                                </h3>
-                                <p style={{ fontSize: '0.82rem', color: 'var(--text-light)', marginBottom: '1rem' }}>
-                                    The AI explains its honest reasoning below. Scores reflect actual detected signals — not estimates.
-                                </p>
-                                {aiAudit.scoringRationale.aio && <RationaleBox label="AIO Rationale" text={aiAudit.scoringRationale.aio} color="var(--primary)" />}
-                                {aiAudit.scoringRationale.geo && <RationaleBox label="GEO Rationale" text={aiAudit.scoringRationale.geo} color="var(--accent-mint)" />}
-                            </div>
-                        )}
-
-                        <div className="details-grid" style={{ marginTop: '1.5rem' }}>
-                            <div className="info-panel">
-                                <h3 className="panel-header">Action Plan</h3>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginBottom: '1rem' }}>
-                                    Priorities ordered by impact. Each task is tagged with the discipline it improves.
-                                </p>
-                                <ul className="task-list">
-                                    {aiAudit?.actionPlan?.map((plan, i) => (
-                                        <li key={i} className="task-item">
-                                            <span className={`task-priority priority-${plan.priority}`}>{plan.priority}</span>
-                                            <div style={{ flex: 1 }}>
-                                                {plan.task}
-                                                {plan.impact && (
-                                                    <span style={{
-                                                        marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 700,
-                                                        padding: '0.1rem 0.4rem', borderRadius: '4px',
-                                                        background: 'rgba(79,70,229,0.1)', color: 'var(--primary)'
-                                                    }}>{plan.impact}</span>
-                                                )}
-                                            </div>
-                                        </li>
-                                    ))}
-                                    {(!aiAudit?.actionPlan || aiAudit.actionPlan.length === 0) && (
-                                        <li className="task-item">
-                                            <span className="task-priority priority-High">High</span>
-                                            <div>Run a fresh analysis to receive AI-generated action items.</div>
-                                        </li>
-                                    )}
-                                </ul>
-                            </div>
-
-                            <div className="info-panel" style={{ height: 'fit-content' }}>
-                                <h3 className="panel-header">Content Insights</h3>
-                                <ul className="task-list">
-                                    <li className="task-item">
-                                        {seoData.wordCount >= 600
-                                            ? <CheckCircle size={20} color="var(--primary)" />
-                                            : <AlertTriangle size={20} color="var(--accent-warning)" />}
-                                        <div>
-                                            <strong>Word Count:</strong> {seoData.wordCount} words
-                                            {seoData.wordCount < 600 && <p style={{ fontSize: '0.8rem', color: 'var(--accent-warning)', margin: '0.1rem 0 0' }}>Aim for 600+ words for better ranking potential.</p>}
-                                        </div>
-                                    </li>
-                                    <li className="task-item">
-                                        {seoData.imagesCount === seoData.imagesWithAlt
-                                            ? <CheckCircle size={20} color="var(--primary)" />
-                                            : <AlertTriangle size={20} color="var(--accent-warning)" />}
-                                        <div>
-                                            <strong>Images With Alt:</strong> {seoData.imagesWithAlt} / {seoData.imagesCount}
-                                            {seoData.imagesCount > seoData.imagesWithAlt && (
-                                                <p style={{ fontSize: '0.8rem', color: 'var(--accent-warning)', margin: '0.1rem 0 0' }}>
-                                                    {seoData.imagesCount - seoData.imagesWithAlt} image(s) are missing alt text — affects both SEO and AIO.
-                                                </p>
-                                            )}
-                                        </div>
-                                    </li>
-                                    <li className="task-item">
-                                        {aiAudit?.llmReadability === 'Good'
-                                            ? <CheckCircle size={20} color="var(--primary)" />
-                                            : <AlertTriangle size={20} color={aiAudit?.llmReadability === 'Poor' ? 'var(--accent-coral)' : 'var(--accent-warning)'} />}
-                                        <div>
-                                            <strong>LLM Readability:</strong> {aiAudit?.llmReadability || 'Unknown'}
-                                            <p style={{ fontSize: '0.8rem', color: 'var(--text-gray)', margin: '0.1rem 0 0' }}>
-                                                How easily language models can parse and extract content from this page.
-                                            </p>
-                                        </div>
-                                    </li>
-                                    <li className="task-item">
-                                        <BrainCircuit size={20} color="var(--primary)" />
-                                        <div>
-                                            <strong>AI Snippet Probability:</strong> {aiAudit?.aiSnippetProbability || 'Unknown'}
-                                            <p style={{ fontSize: '0.8rem', color: 'var(--text-gray)', margin: '0.1rem 0 0' }}>
-                                                Likelihood of appearing in AI-generated search answers.
-                                            </p>
-                                        </div>
-                                    </li>
-                                </ul>
-
-                                {aiAudit?.contentGaps?.length > 0 && (
-                                    <>
-                                        <h3 className="panel-header" style={{ marginTop: '1.5rem' }}>Content Gaps</h3>
-                                        <ul style={{ paddingLeft: '1rem', color: 'var(--text-gray)', fontSize: '0.88rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                                            {aiAudit.contentGaps.map((gap, i) => (
-                                                <li key={i}>{gap}</li>
-                                            ))}
-                                        </ul>
-                                    </>
+                        {/* Locked detailed insights if not signed in */}
+                        <div style={{ position: 'relative', marginTop: '1.5rem' }}>
+                            <div
+                                style={
+                                    isSignedIn
+                                        ? {}
+                                        : {
+                                            filter: 'blur(4px)',
+                                            pointerEvents: 'none',
+                                            userSelect: 'none',
+                                            opacity: 0.75
+                                        }
+                                }
+                            >
+                                {/* AI Scoring Rationale */}
+                                {aiAudit?.scoringRationale && (scores.aio !== null || scores.geo !== null) && (
+                                    <div className="info-panel" style={{ marginTop: '1.5rem' }}>
+                                        <h3 className="panel-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <Info size={17} color="var(--primary)" /> Why These Scores?
+                                        </h3>
+                                        <p style={{ fontSize: '0.82rem', color: 'var(--text-light)', marginBottom: '1rem' }}>
+                                            The AI explains its honest reasoning below. Scores reflect actual detected signals — not estimates.
+                                        </p>
+                                        {aiAudit.scoringRationale.aio && <RationaleBox label="AIO Rationale" text={aiAudit.scoringRationale.aio} color="var(--primary)" />}
+                                        {aiAudit.scoringRationale.geo && <RationaleBox label="GEO Rationale" text={aiAudit.scoringRationale.geo} color="var(--accent-mint)" />}
+                                    </div>
                                 )}
+
+                                <div className="details-grid" style={{ marginTop: '1.5rem' }}>
+                                    <div className="info-panel">
+                                        <h3 className="panel-header">Action Plan</h3>
+                                        <p style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginBottom: '1rem' }}>
+                                            Priorities ordered by impact. Each task is tagged with the discipline it improves.
+                                        </p>
+                                        <ul className="task-list">
+                                            {aiAudit?.actionPlan?.map((plan, i) => (
+                                                <li key={i} className="task-item">
+                                                    <span className={`task-priority priority-${plan.priority}`}>{plan.priority}</span>
+                                                    <div style={{ flex: 1 }}>
+                                                        {plan.task}
+                                                        {plan.impact && (
+                                                            <span style={{
+                                                                marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 700,
+                                                                padding: '0.1rem 0.4rem', borderRadius: '4px',
+                                                                background: 'rgba(79,70,229,0.1)', color: 'var(--primary)'
+                                                            }}>{plan.impact}</span>
+                                                        )}
+                                                    </div>
+                                                </li>
+                                            ))}
+                                            {(!aiAudit?.actionPlan || aiAudit.actionPlan.length === 0) && (
+                                                <li className="task-item">
+                                                    <span className="task-priority priority-High">High</span>
+                                                    <div>Run a fresh analysis to receive AI-generated action items.</div>
+                                                </li>
+                                            )}
+                                        </ul>
+                                    </div>
+
+                                    <div className="info-panel" style={{ height: 'fit-content' }}>
+                                        <h3 className="panel-header">Content Insights</h3>
+                                        <ul className="task-list">
+                                            <li className="task-item">
+                                                {seoData.wordCount >= 600
+                                                    ? <CheckCircle size={20} color="var(--primary)" />
+                                                    : <AlertTriangle size={20} color="var(--accent-warning)" />}
+                                                <div>
+                                                    <strong>Word Count:</strong> {seoData.wordCount} words
+                                                    {seoData.wordCount < 600 && <p style={{ fontSize: '0.8rem', color: 'var(--accent-warning)', margin: '0.1rem 0 0' }}>Aim for 600+ words for better ranking potential.</p>}
+                                                </div>
+                                            </li>
+                                            <li className="task-item">
+                                                {seoData.imagesCount === seoData.imagesWithAlt
+                                                    ? <CheckCircle size={20} color="var(--primary)" />
+                                                    : <AlertTriangle size={20} color="var(--accent-warning)" />}
+                                                <div>
+                                                    <strong>Images With Alt:</strong> {seoData.imagesWithAlt} / {seoData.imagesCount}
+                                                    {seoData.imagesCount > seoData.imagesWithAlt && (
+                                                        <p style={{ fontSize: '0.8rem', color: 'var(--accent-warning)', margin: '0.1rem 0 0' }}>
+                                                            {seoData.imagesCount - seoData.imagesWithAlt} image(s) are missing alt text — affects both SEO and AIO.
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </li>
+                                            <li className="task-item">
+                                                {aiAudit?.llmReadability === 'Good'
+                                                    ? <CheckCircle size={20} color="var(--primary)" />
+                                                    : <AlertTriangle size={20} color={aiAudit?.llmReadability === 'Poor' ? 'var(--accent-coral)' : 'var(--accent-warning)'} />}
+                                                <div>
+                                                    <strong>LLM Readability:</strong> {aiAudit?.llmReadability || 'Unknown'}
+                                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-gray)', margin: '0.1rem 0 0' }}>
+                                                        How easily language models can parse and extract content from this page.
+                                                    </p>
+                                                </div>
+                                            </li>
+                                            <li className="task-item">
+                                                <BrainCircuit size={20} color="var(--primary)" />
+                                                <div>
+                                                    <strong>AI Snippet Probability:</strong> {aiAudit?.aiSnippetProbability || 'Unknown'}
+                                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-gray)', margin: '0.1rem 0 0' }}>
+                                                        Likelihood of appearing in AI-generated search answers.
+                                                    </p>
+                                                </div>
+                                            </li>
+                                        </ul>
+
+                                        {aiAudit?.contentGaps?.length > 0 && (
+                                            <>
+                                                <h3 className="panel-header" style={{ marginTop: '1.5rem' }}>Content Gaps</h3>
+                                                <ul style={{ paddingLeft: '1rem', color: 'var(--text-gray)', fontSize: '0.88rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                                    {aiAudit.contentGaps.map((gap, i) => (
+                                                        <li key={i}>{gap}</li>
+                                                    ))}
+                                                </ul>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
+
+                            {!isSignedIn && <LockOverlay navigate={navigate} analyzedUrl={location.state?.url} keyword={location.state?.keyword} country={location.state?.country} />}
                         </div>
                     </>
                 )}
 
                 {/* ══ SEO AUDIT TAB ══════════════════════════════════════════════════════ */}
                 {activeTab === 'seo-audit' && (
-                    <div className="seo-audit-section">
+                    <div style={{ position: 'relative' }}>
+                    <div className="seo-audit-section" style={!isSignedIn ? { filter: 'blur(4px)', pointerEvents: 'none', userSelect: 'none', opacity: 0.7 } : {}}>
                         <div className="responsive-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem', background: 'white', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
                             <div style={{
                                 width: '90px', height: '90px', borderRadius: '50%', flexShrink: 0,
@@ -716,11 +830,14 @@ const Dashboard = () => {
                             </div>
                         </div>
                     </div>
+                    {!isSignedIn && <LockOverlay navigate={navigate} analyzedUrl={location.state?.url} keyword={location.state?.keyword} country={location.state?.country} />}
+                    </div>
                 )}
 
                 {/* ══ GEO INSIGHTS TAB ════════════════════════════════════════════════════ */}
                 {activeTab === 'geo-insights' && (
-                    <div className="geo-insights-section">
+                    <div style={{ position: 'relative' }}>
+                    <div className="geo-insights-section" style={!isSignedIn ? { filter: 'blur(4px)', pointerEvents: 'none', userSelect: 'none', opacity: 0.7 } : {}}>
                         {/* Score Header */}
                         <div className="responsive-header" style={{ display: 'flex', alignItems: 'center', background: 'white', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-light)', gap: '1.25rem', marginBottom: '2rem' }}>
                             <div style={{
@@ -823,11 +940,14 @@ const Dashboard = () => {
                             </div>
                         </div>
                     </div>
+                    {!isSignedIn && <LockOverlay navigate={navigate} analyzedUrl={location.state?.url} keyword={location.state?.keyword} country={location.state?.country} />}
+                    </div>
                 )}
 
                 {/* ══ AIO TAB ════════════════════════════════════════════════════════════ */}
                 {activeTab === 'ai-visibility' && (
-                    <div className="ai-visibility-section">
+                    <div style={{ position: 'relative' }}>
+                    <div className="ai-visibility-section" style={!isSignedIn ? { filter: 'blur(4px)', pointerEvents: 'none', userSelect: 'none', opacity: 0.7 } : {}}>
                         <div className="responsive-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '2.5rem', background: 'white', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
                             <div style={{
                                 width: '100px', height: '100px', borderRadius: '50%', flexShrink: 0,
@@ -947,6 +1067,8 @@ const Dashboard = () => {
                                 </ul>
                             </div>
                         </div>
+                    </div>
+                    {!isSignedIn && <LockOverlay navigate={navigate} analyzedUrl={location.state?.url} keyword={location.state?.keyword} country={location.state?.country} />}
                     </div>
                 )}
             </div>

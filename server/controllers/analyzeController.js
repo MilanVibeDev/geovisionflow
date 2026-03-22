@@ -3,6 +3,56 @@ const { getPageSpeed } = require('../utils/pageSpeed');
 const { getAIAudit } = require('../utils/aiAnalyzer');
 const { supabase } = require('../utils/supabase');
 
+// ── Daily Rate Limit ─────────────────────────────────────────────────────────
+// In-memory store: { [key]: { date: 'YYYY-MM-DD', count: N } }
+// Key = user UUID (authenticated) or 'ip:<address>' (guest).
+// Resets automatically at next midnight UTC.
+const DAILY_LIMIT = 1;
+const usageStore = new Map();
+
+const getTodayUTC = () => new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+
+/**
+ * Returns { allowed: bool, usedToday: number, resetsAt: string }
+ * and increments the counter when allowed=true.
+ */
+const checkAndIncrementLimit = (key) => {
+    const today = getTodayUTC();
+    const entry = usageStore.get(key);
+
+    if (!entry || entry.date !== today) {
+        // New day or first ever — reset
+        usageStore.set(key, { date: today, count: 1 });
+        return { allowed: true, usedToday: 1 };
+    }
+
+    if (entry.count >= DAILY_LIMIT) {
+        // Calculate ms until midnight UTC
+        const now = new Date();
+        const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+        const hoursLeft = Math.ceil((midnight - now) / 36e5);
+        return { allowed: false, usedToday: entry.count, hoursLeft };
+    }
+
+    entry.count += 1;
+    return { allowed: true, usedToday: entry.count };
+};
+
+/**
+ * Decodes a Supabase/JWT Bearer token without verifying the signature
+ * (server already trusts the DB; we just need the sub/user ID).
+ */
+const extractUserIdFromToken = (authHeader) => {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+    try {
+        const payload = authHeader.split('.')[1];
+        const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+        return decoded.sub || null; // Supabase uses 'sub' for the user UUID
+    } catch {
+        return null;
+    }
+};
+
 /**
  * Computes the Technical SEO score from scraped data.
  *
@@ -207,11 +257,59 @@ const runAnalysis = async ({ url, keyword, country }) => {
 };
 
 const analyzeWebsite = async (req, res) => {
+    // ── Identify caller ─────────────────────────────────────────────────────
+    const userId = extractUserIdFromToken(req.headers['authorization']);
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+    const limitKey = userId ? `user:${userId}` : `ip:${ip}`;
+
+    // ── Check if result is already cached (no AI cost) ──────────────────────
+    // We still allow cached responses through even if the limit is reached
+    // because they cost $0 in API usage. Check cache first.
+    const { url } = req.body || {};
+    let isCached = false;
+    if (url) {
+        try {
+            const yesterday = new Date();
+            yesterday.setHours(yesterday.getHours() - 24);
+            const { data: cachedAudit } = await supabase
+                .from('audits')
+                .select('created_at, ai_score, geo_score')
+                .eq('url', url)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            if (cachedAudit?.length > 0) {
+                const lastDate = new Date(cachedAudit[0].created_at);
+                const hasResults = cachedAudit[0].ai_score !== null && cachedAudit[0].geo_score !== null;
+                if (lastDate > yesterday && hasResults) isCached = true;
+            }
+        } catch { /* ignore */ }
+    }
+
+    // ── Enforce limit only for fresh (non-cached) analyses ──────────────────
+    if (!isCached) {
+        const limitCheck = checkAndIncrementLimit(limitKey);
+        if (!limitCheck.allowed) {
+            console.log(`Rate limit hit for ${limitKey} (${limitCheck.usedToday}/${DAILY_LIMIT} today)`);
+            return res.status(429).json({
+                error: 'DAILY_LIMIT_REACHED',
+                message: `You have used your ${DAILY_LIMIT} free analysis for today. Your limit resets in approximately ${limitCheck.hoursLeft} hour(s).`,
+                hoursLeft: limitCheck.hoursLeft,
+                limit: DAILY_LIMIT,
+                usedToday: limitCheck.usedToday
+            });
+        }
+    }
+
     try {
         const result = await runAnalysis(req.body || {});
         res.json(result);
     } catch (error) {
         console.error('Error during analysis:', error);
+        // If analysis failed, refund the usage slot so the user can retry
+        if (!isCached) {
+            const entry = usageStore.get(limitKey);
+            if (entry && entry.count > 0) entry.count -= 1;
+        }
         res.status(error.statusCode || 500).json({ error: 'Failed to analyze website. ' + error.message });
     }
 };

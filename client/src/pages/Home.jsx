@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Search, Zap, Globe, Cpu, BarChart } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -8,7 +8,19 @@ import FAQs from '@/components/ui/text-reveal-faqs';
 
 const Home = () => {
     const [url, setUrl] = useState('');
+    const [user, setUser] = useState(null);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                setUser(JSON.parse(storedUser));
+            } catch (e) {
+                console.error("Failed to parse user", e);
+            }
+        }
+    }, []);
 
     const handleAnalyze = (e) => {
         e.preventDefault();
@@ -32,6 +44,16 @@ const Home = () => {
                 <div className="nav-links">
                     <a href="/#features" className="nav-link">Features</a>
                     <a href="/#faq" className="nav-link">FAQ</a>
+                    {user ? (
+                        <Link to="/profile" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: 'bold' }}>
+                                {user.email?.charAt(0).toUpperCase() || 'U'}
+                            </div>
+                            Account
+                        </Link>
+                    ) : (
+                        <Link to="/auth" className="nav-link">Sign In</Link>
+                    )}
                     <button className="btn btn-primary" onClick={() => document.getElementById('urlInput').focus()}>Get Started</button>
                 </div>
 
